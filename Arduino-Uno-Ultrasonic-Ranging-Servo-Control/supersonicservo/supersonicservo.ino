@@ -81,8 +81,8 @@ void loop() {
       // 这里简单将距离映射到 100 - 1000 毫秒的闪烁间隔
       ledInterval = map(distance, 0, 200, 100, 1000);
 
-      // 根据距离控制舵机角度
-      int servoAngle = map(distance, 2, 30, 0, 180);
+      // 根据距离控制舵机角度 将2-20cm映射到180°
+      int servoAngle = map(distance, 2, 20, 0, 180);
       myServo.write(servoAngle);
     }
 

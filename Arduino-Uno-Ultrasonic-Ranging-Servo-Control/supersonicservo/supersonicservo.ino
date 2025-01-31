@@ -3,6 +3,10 @@
 
 #include <Servo.h>
 
+
+
+
+
 // 定义触发引脚和回声引脚
 const int trigPin = 9;
 const int echoPin = 10;
@@ -27,7 +31,7 @@ unsigned long previousMillis = 0;
 // 上次 LED 状态改变的时间
 unsigned long previousLedMillis = 0;
 // 测量间隔时间（毫秒）
-const long interval = 200;
+const long interval = 100;
 // LED 闪烁间隔
 unsigned long ledInterval;
 
@@ -95,6 +99,44 @@ void loop() {
   }
 }
 
+
+// 定义变量用于存储多次测量的总和
+float totalDistance = 0;
+// 定义变量用于存储测量次数
+int measurementCount = 0;
+// 定义测量次数上限
+const int maxMeasurements = 5;
+
+// 测量距离的函数
+void measureDistance() {
+  // 清空触发引脚
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  // 发送 10 微秒的高电平脉冲触发超声波模块
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  // 读取回声引脚的脉冲持续时间
+  long duration = pulseIn(echoPin, HIGH);
+  // 根据声速（340m/s）计算距离
+  float currentDistance = duration * 0.034 / 2;
+
+  // 过滤异常数据
+  if (currentDistance > 0) {
+    totalDistance += currentDistance;
+    measurementCount++;
+  }
+
+  // 达到测量次数上限时计算平均值
+  if (measurementCount >= maxMeasurements) {
+    distance = totalDistance / measurementCount;
+    totalDistance = 0;
+    measurementCount = 0;
+  }
+}
+
+/*
 // 测量距离的函数
 void measureDistance() {
   // 清空触发引脚
@@ -110,3 +152,4 @@ void measureDistance() {
   // 根据声速（340m/s）计算距离
   distance = duration * 0.034 / 2;
 }
+*/

@@ -207,5 +207,553 @@ plaintext
 电流容量：电源的输出电流应能够满足舵机在满负载情况下的需求，避免因供电不足导致舵机抖动或无法正常工作。
 极性连接：在连接电源和舵机时，要注意正负极的连接，避免接反导致舵机或电源损坏。
 共地连接：一定要确保舵机和 Arduino 共地，否则舵机可能无法正常响应 Arduino 发出的控制信号。
+增加功能，在程序开始在串口显示“选择模式：电阻模拟(A)或串口发送角度(B)”,选择A：电阻模式下滑动变阻器控制舵机角度，选择B：向串口输入0-180度角度，舵机控制到相应角度。
+以下是一个满足你需求的 Arduino 代码示例，它允许用户在电阻模拟模式（通过滑动变阻器控制舵机角度）和串口发送角度模式（通过串口输入 0 - 180 度的角度来控制舵机）之间进行选择。
+cpp
+#include <Servo.h>
+
+// 定义舵机对象
+Servo myServo;
+
+// 定义滑动变阻器连接的引脚
+const int potPin = A0;
+// 定义 LED 连接的引脚
+const int ledPin = 13;
+
+// 定义舵机 PWM 信号范围
+const int minPulse = 500;  // 最小 PWM 信号（500us）
+const int maxPulse = 2500; // 最大 PWM 信号（2500us）
+
+// 定义闪烁间隔时间范围
+const int minBlinkInterval = 100;  // 最快闪烁间隔（100ms）
+const int maxBlinkInterval = 1000; // 最慢闪烁间隔（1000ms）
+
+// 记录上一次闪烁的时间
+unsigned long previousMillis = 0;
+// 当前闪烁间隔时间
+int blinkInterval = maxBlinkInterval;
+// LED 状态
+bool ledState = LOW;
+
+// 模式选择标志
+char mode = ' ';
+
+void setup() {
+  // 初始化舵机
+  myServo.attach(9, minPulse, maxPulse);
+  
+  // 初始化 LED 引脚为输出模式
+  pinMode(ledPin, OUTPUT);
+  
+  // 打开串口通信
+  Serial.begin(9600);
+  
+  // 提示用户选择模式
+  Serial.println("选择模式：电阻模拟(A)或串口发送角度(B)");
+}
+
+void loop() {
+  if (mode == ' ') {
+    // 等待用户输入模式选择
+    if (Serial.available() > 0) {
+      mode = Serial.read();
+      if (mode != 'A' && mode != 'B') {
+        Serial.println("无效的选择，请输入 A 或 B");
+        mode = ' ';
+      }
+    }
+  } else if (mode == 'A') {
+    // 电阻模拟模式
+    // 读取滑动变阻器的模拟值
+    int potValue = analogRead(potPin);
+    
+    // 将模拟值映射到舵机的角度范围（0 - 180 度）
+    int servoAngle = map(potValue, 0, 1023, 0, 180);
+    
+    // 将模拟值映射到闪烁间隔时间范围
+    blinkInterval = map(potValue, 0, 1023, maxBlinkInterval, minBlinkInterval);
+    
+    // 设置舵机角度
+    myServo.write(servoAngle);
+    
+    // 打印滑动变阻器的值、舵机角度和闪烁间隔时间
+    Serial.print("Potentiometer Value: ");
+    Serial.print(potValue);
+    Serial.print(", Servo Angle: ");
+    Serial.print(servoAngle);
+    Serial.print(", Blink Interval: ");
+    Serial.println(blinkInterval);
+  } else if (mode == 'B') {
+    // 串口发送角度模式
+    if (Serial.available() > 0) {
+      // 读取串口输入的角度
+      int angle = Serial.parseInt();
+      if (angle >= 0 && angle <= 180) {
+        // 设置舵机角度
+        myServo.write(angle);
+        Serial.print("舵机已转到角度: ");
+        Serial.println(angle);
+      } else {
+        Serial.println("输入的角度无效，请输入 0 - 180 度之间的角度");
+      }
+    }
+  }
+  
+  // 获取当前时间
+  unsigned long currentMillis = millis();
+  
+  // 判断是否到了闪烁时间
+  if (currentMillis - previousMillis >= blinkInterval) {
+    // 记录上一次闪烁的时间
+    previousMillis = currentMillis;
+    
+    // 切换 LED 状态
+    ledState = !ledState;
+    digitalWrite(ledPin, ledState);
+  }
+  
+  // 稍微延迟一下，避免读取过快
+  delay(10);
+}
+代码说明：
+模式选择提示：在 setup() 函数中，程序会在串口输出提示信息，让用户选择模式（A 表示电阻模拟模式，B 表示串口发送角度模式）。
+模式选择判断：在 loop() 函数中，首先检查是否已经选择了模式。如果没有选择，程序会等待用户在串口输入模式选择字符。如果输入的字符不是 'A' 或 'B'，会提示用户重新输入。
+电阻模拟模式（A）：当用户选择模式 A 时，程序会读取滑动变阻器的模拟值，并将其映射到舵机的角度范围（0 - 180 度），同时根据滑动变阻器的值改变 LED 灯的闪烁速度。
+串口发送角度模式（B）：当用户选择模式 B 时，程序会等待用户在串口输入 0 - 180 度之间的角度值。如果输入的角度值有效，舵机会转动到相应的角度；如果输入无效，会提示用户重新输入。
+LED 闪烁：无论处于哪种模式，LED 灯都会根据滑动变阻器的值（模式 A）或保持默认的闪烁间隔（模式 B）进行闪烁。
+使用方法：
+上传代码到 Arduino Uno 开发板。
+打开串口监视器，设置波特率为 9600。
+根据提示输入 'A' 或 'B' 选择模式。
+如果选择模式 A，转动滑动变阻器来控制舵机角度；如果选择模式 B，在串口输入 0 - 180 度之间的角度值来控制舵机。
+给出更详细的注释。
+cpp
+// 引入 Servo 库，该库用于控制舵机
+#include <Servo.h>
+
+// 定义舵机对象，后续将使用这个对象来控制舵机的转动
+Servo myServo;
+
+// 定义滑动变阻器连接的引脚，这里使用 Arduino 的模拟输入引脚 A0
+const int potPin = A0;
+// 定义 LED 连接的引脚，使用 Arduino 开发板上的数字引脚 13
+const int ledPin = 13;
+
+// 定义舵机 PWM 信号范围
+// 舵机的最小 PWM 信号宽度为 500 微秒，对应舵机的最小转动角度
+const int minPulse = 500;
+// 舵机的最大 PWM 信号宽度为 2500 微秒，对应舵机的最大转动角度
+const int maxPulse = 2500;
+
+// 定义 LED 闪烁间隔时间范围
+// 最快闪烁间隔为 100 毫秒，即 LED 闪烁最快的时间间隔
+const int minBlinkInterval = 100;
+// 最慢闪烁间隔为 1000 毫秒，即 LED 闪烁最慢的时间间隔
+const int maxBlinkInterval = 1000;
+
+// 记录上一次 LED 闪烁的时间，用于实现定时闪烁功能
+unsigned long previousMillis = 0;
+// 当前 LED 的闪烁间隔时间，会根据滑动变阻器的位置而改变
+int blinkInterval = maxBlinkInterval;
+// LED 的当前状态，LOW 表示熄灭，HIGH 表示点亮
+bool ledState = LOW;
+
+// 模式选择标志，用于记录用户选择的工作模式，初始值为空格表示未选择
+char mode = ' ';
+
+// setup() 函数在程序开始时只执行一次，用于初始化硬件和设置初始参数
+void setup() {
+  // 初始化舵机，将舵机连接到数字引脚 9，并设置其 PWM 信号的最小和最大宽度
+  myServo.attach(9, minPulse, maxPulse);
+  
+  // 将 LED 引脚设置为输出模式，以便可以控制 LED 的点亮和熄灭
+  pinMode(ledPin, OUTPUT);
+  
+  // 打开串口通信，设置波特率为 9600，用于与计算机进行数据交互
+  Serial.begin(9600);
+  
+  // 在串口监视器上显示提示信息，让用户选择工作模式
+  Serial.println("选择模式：电阻模拟(A)或串口发送角度(B)");
+}
+
+// loop() 函数会不断循环执行，实现程序的主要功能
+void loop() {
+  // 如果还没有选择工作模式
+  if (mode == ' ') {
+    // 检查串口是否有数据可读
+    if (Serial.available() > 0) {
+      // 读取串口接收到的字符，并将其赋值给模式选择标志
+      mode = Serial.read();
+      // 如果用户输入的字符不是 'A' 也不是 'B'
+      if (mode != 'A' && mode != 'B') {
+        // 在串口监视器上显示错误提示信息，让用户重新输入
+        Serial.println("无效的选择，请输入 A 或 B");
+        // 将模式选择标志重置为空格，表示未选择模式
+        mode = ' ';
+      }
+    }
+  } 
+  // 如果用户选择了电阻模拟模式（A）
+  else if (mode == 'A') {
+    // 读取滑动变阻器连接的模拟引脚 A0 的值，范围是 0 - 1023
+    int potValue = analogRead(potPin);
+    
+    // 将滑动变阻器读取到的模拟值（0 - 1023）映射到舵机的角度范围（0 - 180 度）
+    int servoAngle = map(potValue, 0, 1023, 0, 180);
+    
+    // 将滑动变阻器的模拟值映射到 LED 的闪烁间隔时间范围（maxBlinkInterval - minBlinkInterval）
+    blinkInterval = map(potValue, 0, 1023, maxBlinkInterval, minBlinkInterval);
+    
+    // 根据计算得到的角度值，控制舵机转动到相应的角度
+    myServo.write(servoAngle);
+    
+    // 在串口监视器上打印滑动变阻器的值、舵机的角度和 LED 的闪烁间隔时间，方便调试和观察
+    Serial.print("Potentiometer Value: ");
+    Serial.print(potValue);
+    Serial.print(", Servo Angle: ");
+    Serial.print(servoAngle);
+    Serial.print(", Blink Interval: ");
+    Serial.println(blinkInterval);
+  } 
+  // 如果用户选择了串口发送角度模式（B）
+  else if (mode == 'B') {
+    // 检查串口是否有数据可读
+    if (Serial.available() > 0) {
+      // 从串口读取一个整数值，作为用户输入的舵机角度
+      int angle = Serial.parseInt();
+      // 检查输入的角度是否在 0 - 180 度的有效范围内
+      if (angle >= 0 && angle <= 180) {
+        // 根据用户输入的有效角度，控制舵机转动到相应的角度
+        myServo.write(angle);
+        // 在串口监视器上显示舵机已经转动到的角度
+        Serial.print("舵机已转到角度: ");
+        Serial.println(angle);
+      } else {
+        // 如果输入的角度无效，在串口监视器上显示错误提示信息
+        Serial.println("输入的角度无效，请输入 0 - 180 度之间的角度");
+      }
+    }
+  }
+  
+  // 获取当前的系统时间，单位为毫秒
+  unsigned long currentMillis = millis();
+  
+  // 判断是否已经达到了 LED 的闪烁间隔时间
+  if (currentMillis - previousMillis >= blinkInterval) {
+    // 更新上一次 LED 闪烁的时间为当前时间
+    previousMillis = currentMillis;
+    
+    // 切换 LED 的状态，即如果当前是点亮状态则熄灭，如果是熄灭状态则点亮
+    ledState = !ledState;
+    // 根据切换后的状态控制 LED 引脚的电平，实现 LED 的闪烁
+    digitalWrite(ledPin, ledState);
+  }
+  
+  // 稍微延迟 10 毫秒，避免程序读取数据过快，减少资源占用
+  delay(10);
+}
+这段代码详细地实现了根据用户选择的模式来控制舵机的功能，同时通过 LED 的闪烁间隔来直观反映滑动变阻器的状态（在电阻模拟模式下）。在电阻模拟模式中，利用滑动变阻器控制舵机角度；在串口发送角度模式中，用户可以直接通过串口输入角度值来控制舵机。并且，代码中对每个关键步骤都添加了详细的注释，方便理解和维护。
+为什么这段程序选择B之后，舵机转到特定角度之后又回到0度，分析原因，如何修改可以固定在输入的角度上。给出详细注释
+问题分析
+在选择模式 B 后，舵机转到特定角度之后又回到 0 度，很可能是因为串口持续读取数据，当没有新的有效角度数据输入时，Serial.parseInt() 可能会返回 0，从而导致舵机被错误地设置回 0 度。具体来说，Serial.parseInt() 会尝试从串口缓冲区中读取一个整数，如果缓冲区中没有有效的整数数据，它可能会返回默认值（通常是 0），并且每次 loop() 循环都会执行这个读取操作，所以舵机会不断被重置到 0 度。
+修改方案
+为了让舵机固定在输入的角度上，我们需要在接收到有效的角度输入后，避免在没有新输入时重复设置舵机角度。可以通过添加一个标志位来判断是否有新的角度输入，只有当有新输入时才更新舵机角度。
+以下是修改后的代码，并添加了详细注释：
+cpp
+#include <Servo.h>
+
+// 定义舵机对象，用于控制舵机的转动
+Servo myServo;
+
+// 定义滑动变阻器连接的引脚，使用 Arduino 的模拟输入引脚 A0
+const int potPin = A0;
+// 定义 LED 连接的引脚，使用 Arduino 开发板上的数字引脚 13
+const int ledPin = 13;
+
+// 定义舵机 PWM 信号范围
+// 舵机的最小 PWM 信号宽度为 500 微秒，对应舵机的最小转动角度
+const int minPulse = 500;
+// 舵机的最大 PWM 信号宽度为 2500 微秒，对应舵机的最大转动角度
+const int maxPulse = 2500;
+
+// 定义 LED 闪烁间隔时间范围
+// 最快闪烁间隔为 100 毫秒，即 LED 闪烁最快的时间间隔
+const int minBlinkInterval = 100;
+// 最慢闪烁间隔为 1000 毫秒，即 LED 闪烁最慢的时间间隔
+const int maxBlinkInterval = 1000;
+
+// 记录上一次 LED 闪烁的时间，用于实现定时闪烁功能
+unsigned long previousMillis = 0;
+// 当前 LED 的闪烁间隔时间，会根据滑动变阻器的位置而改变
+int blinkInterval = maxBlinkInterval;
+// LED 的当前状态，LOW 表示熄灭，HIGH 表示点亮
+bool ledState = LOW;
+
+// 模式选择标志，用于记录用户选择的工作模式，初始值为空格表示未选择
+char mode = ' ';
+// 标志位，用于判断是否有新的角度输入
+bool newAngleReceived = false;
+
+void setup() {
+  // 初始化舵机，将舵机连接到数字引脚 9，并设置其 PWM 信号的最小和最大宽度
+  myServo.attach(9, minPulse, maxPulse);
+  
+  // 将 LED 引脚设置为输出模式，以便可以控制 LED 的点亮和熄灭
+  pinMode(ledPin, OUTPUT);
+  
+  // 打开串口通信，设置波特率为 9600，用于与计算机进行数据交互
+  Serial.begin(9600);
+  
+  // 在串口监视器上显示提示信息，让用户选择工作模式
+  Serial.println("选择模式：电阻模拟(A)或串口发送角度(B)");
+}
+
+void loop() {
+  // 如果还没有选择工作模式
+  if (mode == ' ') {
+    // 检查串口是否有数据可读
+    if (Serial.available() > 0) {
+      // 读取串口接收到的字符，并将其赋值给模式选择标志
+      mode = Serial.read();
+      // 如果用户输入的字符不是 'A' 也不是 'B'
+      if (mode != 'A' && mode != 'B') {
+        // 在串口监视器上显示错误提示信息，让用户重新输入
+        Serial.println("无效的选择，请输入 A 或 B");
+        // 将模式选择标志重置为空格，表示未选择模式
+        mode = ' ';
+      }
+    }
+  } 
+  // 如果用户选择了电阻模拟模式（A）
+  else if (mode == 'A') {
+    // 读取滑动变阻器连接的模拟引脚 A0 的值，范围是 0 - 1023
+    int potValue = analogRead(potPin);
+    
+    // 将滑动变阻器读取到的模拟值（0 - 1023）映射到舵机的角度范围（0 - 180 度）
+    int servoAngle = map(potValue, 0, 1023, 0, 180);
+    
+    // 将滑动变阻器的模拟值映射到 LED 的闪烁间隔时间范围（maxBlinkInterval - minBlinkInterval）
+    blinkInterval = map(potValue, 0, 1023, maxBlinkInterval, minBlinkInterval);
+    
+    // 根据计算得到的角度值，控制舵机转动到相应的角度
+    myServo.write(servoAngle);
+    
+    // 在串口监视器上打印滑动变阻器的值、舵机的角度和 LED 的闪烁间隔时间，方便调试和观察
+    Serial.print("Potentiometer Value: ");
+    Serial.print(potValue);
+    Serial.print(", Servo Angle: ");
+    Serial.print(servoAngle);
+    Serial.print(", Blink Interval: ");
+    Serial.println(blinkInterval);
+  } 
+  // 如果用户选择了串口发送角度模式（B）
+  else if (mode == 'B') {
+    // 检查串口是否有数据可读
+    if (Serial.available() > 0) {
+      // 从串口读取一个整数值，作为用户输入的舵机角度
+      int angle = Serial.parseInt();
+      // 检查输入的角度是否在 0 - 180 度的有效范围内
+      if (angle >= 0 && angle <= 180) {
+        // 根据用户输入的有效角度，控制舵机转动到相应的角度
+        myServo.write(angle);
+        // 在串口监视器上显示舵机已经转动到的角度
+        Serial.print("舵机已转到角度: ");
+        Serial.println(angle);
+        // 设置标志位，表示有新的角度输入
+        newAngleReceived = true;
+      } else {
+        // 如果输入的角度无效，在串口监视器上显示错误提示信息
+        Serial.println("输入的角度无效，请输入 0 - 180 度之间的角度");
+      }
+    }
+    // 如果没有新的角度输入，不做任何操作，保持舵机当前角度
+    else if (!newAngleReceived) {
+      // 这里可以添加一些代码用于其他操作，比如显示当前角度等
+      // 目前不进行额外操作，舵机保持原角度
+    }
+    // 当处理完一次新的角度输入后，重置标志位
+    else {
+      newAngleReceived = false;
+    }
+  }
+  
+  // 获取当前的系统时间，单位为毫秒
+  unsigned long currentMillis = millis();
+  
+  // 判断是否已经达到了 LED 的闪烁间隔时间
+  if (currentMillis - previousMillis >= blinkInterval) {
+    // 更新上一次 LED 闪烁的时间为当前时间
+    previousMillis = currentMillis;
+    
+    // 切换 LED 的状态，即如果当前是点亮状态则熄灭，如果是熄灭状态则点亮
+    ledState = !ledState;
+    // 根据切换后的状态控制 LED 引脚的电平，实现 LED 的闪烁
+    digitalWrite(ledPin, ledState);
+  }
+  
+  // 稍微延迟 10 毫秒，避免程序读取数据过快，减少资源占用
+  delay(10);
+}
+代码解释
+newAngleReceived 标志位：用于记录是否有新的有效角度输入。初始值为 false，表示没有新输入。
+在接收到有效角度输入时：当在模式 B 下接收到 0 - 180 度之间的有效角度时，将 newAngleReceived 设置为 true，表示有新的角度输入。
+没有新输入时的处理：如果 Serial.available() == 0 且 newAngleReceived 为 false，则不进行任何操作，舵机保持当前角度。
+处理完新输入后：在处理完一次新的有效角度输入后，将 newAngleReceived 重置为 false，以便等待下一次新输入。
+通过这种方式，只有在有新的有效角度输入时才会更新舵机角度，避免了舵机在没有新输入时被错误地重置到 0 度。
+检查上述代码，为什么没有作用，依然会回到0角度。
+虽然添加了 newAngleReceived 标志位来控制舵机角度更新，但代码仍存在一些细节问题导致舵机还是会回到 0 度。下面来详细分析可能的原因以及相应的解决办法。
+可能的原因
+1. Serial.parseInt() 的特性
+Serial.parseInt() 在没有接收到有效的整数数据时，它会持续等待直到超时或者接收到有效数据。当超时后，它可能会返回 0。在每次 loop 循环中都会调用 Serial.parseInt()，如果串口没有新数据，就可能会错误地将 0 作为角度值传递给舵机。
+2. 串口缓冲区问题
+串口缓冲区可能会残留之前的数据，导致 Serial.parseInt() 读取到错误的数据。
+修改后的代码及详细注释
+cpp
+#include <Servo.h>
+
+// 定义舵机对象，用于控制舵机的转动
+Servo myServo;
+
+// 定义滑动变阻器连接的引脚，使用 Arduino 的模拟输入引脚 A0
+const int potPin = A0;
+// 定义 LED 连接的引脚，使用 Arduino 开发板上的数字引脚 13
+const int ledPin = 13;
+
+// 定义舵机 PWM 信号范围
+// 舵机的最小 PWM 信号宽度为 500 微秒，对应舵机的最小转动角度
+const int minPulse = 500;
+// 舵机的最大 PWM 信号宽度为 2500 微秒，对应舵机的最大转动角度
+const int maxPulse = 2500;
+
+// 定义 LED 闪烁间隔时间范围
+// 最快闪烁间隔为 100 毫秒，即 LED 闪烁最快的时间间隔
+const int minBlinkInterval = 100;
+// 最慢闪烁间隔为 1000 毫秒，即 LED 闪烁最慢的时间间隔
+const int maxBlinkInterval = 1000;
+
+// 记录上一次 LED 闪烁的时间，用于实现定时闪烁功能
+unsigned long previousMillis = 0;
+// 当前 LED 的闪烁间隔时间，会根据滑动变阻器的位置而改变
+int blinkInterval = maxBlinkInterval;
+// LED 的当前状态，LOW 表示熄灭，HIGH 表示点亮
+bool ledState = LOW;
+
+// 模式选择标志，用于记录用户选择的工作模式，初始值为空格表示未选择
+char mode = ' ';
+// 标志位，用于判断是否有新的角度输入
+bool newAngleReceived = false;
+// 记录当前舵机的角度，初始值为 0
+int currentAngle = 0;
+
+void setup() {
+  // 初始化舵机，将舵机连接到数字引脚 9，并设置其 PWM 信号的最小和最大宽度
+  myServo.attach(9, minPulse, maxPulse);
+  
+  // 将 LED 引脚设置为输出模式，以便可以控制 LED 的点亮和熄灭
+  pinMode(ledPin, OUTPUT);
+  
+  // 打开串口通信，设置波特率为 9600，用于与计算机进行数据交互
+  Serial.begin(9600);
+  
+  // 在串口监视器上显示提示信息，让用户选择工作模式
+  Serial.println("选择模式：电阻模拟(A)或串口发送角度(B)");
+}
+
+void loop() {
+  // 如果还没有选择工作模式
+  if (mode == ' ') {
+    // 检查串口是否有数据可读
+    if (Serial.available() > 0) {
+      // 读取串口接收到的字符，并将其赋值给模式选择标志
+      mode = Serial.read();
+      // 如果用户输入的字符不是 'A' 也不是 'B'
+      if (mode != 'A' && mode != 'B') {
+        // 在串口监视器上显示错误提示信息，让用户重新输入
+        Serial.println("无效的选择，请输入 A 或 B");
+        // 将模式选择标志重置为空格，表示未选择模式
+        mode = ' ';
+      }
+    }
+  } 
+  // 如果用户选择了电阻模拟模式（A）
+  else if (mode == 'A') {
+    // 读取滑动变阻器连接的模拟引脚 A0 的值，范围是 0 - 1023
+    int potValue = analogRead(potPin);
+    
+    // 将滑动变阻器读取到的模拟值（0 - 1023）映射到舵机的角度范围（0 - 180 度）
+    int servoAngle = map(potValue, 0, 1023, 0, 180);
+    
+    // 将滑动变阻器的模拟值映射到 LED 的闪烁间隔时间范围（maxBlinkInterval - minBlinkInterval）
+    blinkInterval = map(potValue, 0, 1023, maxBlinkInterval, minBlinkInterval);
+    
+    // 根据计算得到的角度值，控制舵机转动到相应的角度
+    myServo.write(servoAngle);
+    
+    // 在串口监视器上打印滑动变阻器的值、舵机的角度和 LED 的闪烁间隔时间，方便调试和观察
+    Serial.print("Potentiometer Value: ");
+    Serial.print(potValue);
+    Serial.print(", Servo Angle: ");
+    Serial.print(servoAngle);
+    Serial.print(", Blink Interval: ");
+    Serial.println(blinkInterval);
+  } 
+  // 如果用户选择了串口发送角度模式（B）
+  else if (mode == 'B') {
+    // 检查串口是否有数据可读
+    if (Serial.available() > 0) {
+      // 从串口读取一个整数值，作为用户输入的舵机角度
+      int angle = Serial.parseInt();
+      // 检查输入的角度是否在 0 - 180 度的有效范围内
+      if (angle >= 0 && angle <= 180) {
+        // 根据用户输入的有效角度，控制舵机转动到相应的角度
+        myServo.write(angle);
+        // 更新当前舵机的角度
+        currentAngle = angle;
+        // 在串口监视器上显示舵机已经转动到的角度
+        Serial.print("舵机已转到角度: ");
+        Serial.println(angle);
+        // 设置标志位，表示有新的角度输入
+        newAngleReceived = true;
+      } else {
+        // 如果输入的角度无效，在串口监视器上显示错误提示信息
+        Serial.println("输入的角度无效，请输入 0 - 180 度之间的角度");
+      }
+      // 清空串口缓冲区，避免残留数据影响下次读取
+      while (Serial.available() > 0) {
+        Serial.read();
+      }
+    }
+    // 如果没有新的角度输入，保持舵机当前角度
+    else if (!newAngleReceived) {
+      myServo.write(currentAngle);
+    }
+    // 当处理完一次新的角度输入后，重置标志位
+    else {
+      newAngleReceived = false;
+    }
+  }
+  
+  // 获取当前的系统时间，单位为毫秒
+  unsigned long currentMillis = millis();
+  
+  // 判断是否已经达到了 LED 的闪烁间隔时间
+  if (currentMillis - previousMillis >= blinkInterval) {
+    // 更新上一次 LED 闪烁的时间为当前时间
+    previousMillis = currentMillis;
+    
+    // 切换 LED 的状态，即如果当前是点亮状态则熄灭，如果是熄灭状态则点亮
+    ledState = !ledState;
+    // 根据切换后的状态控制 LED 引脚的电平，实现 LED 的闪烁
+    digitalWrite(ledPin, ledState);
+  }
+  
+  // 稍微延迟 10 毫秒，避免程序读取数据过快，减少资源占用
+  delay(10);
+}
+主要修改点
+添加 currentAngle 变量：用于记录当前舵机的角度。在接收到有效的角度输入时，更新该变量的值。在没有新输入时，使用该变量的值来保持舵机的角度。
+清空串口缓冲区：在处理完一次有效的角度输入后，使用 while (Serial.available() > 0) { Serial.read(); } 清空串口缓冲区，避免残留数据影响下次读取。
+在无新输入时保持角度：在没有新的角度输入时（Serial.available() == 0 且 !newAngleReceived），调用 myServo.write(currentAngle) 来保持舵机的当前角度。
+通过这些修改，应该可以解决舵机回到 0 度的问题。
 ﻿
 当距离变化速度比较快的时候，发现舵机无法跟上距离变化速度，当步长增大又出现卡顿的感觉，分析原因，是否有解决方法？

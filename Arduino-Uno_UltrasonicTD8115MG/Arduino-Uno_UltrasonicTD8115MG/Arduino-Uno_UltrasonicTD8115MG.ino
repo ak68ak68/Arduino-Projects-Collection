@@ -236,4 +236,3 @@ void measureDistance() {
         measurementCount = 0;
     }
 }
-

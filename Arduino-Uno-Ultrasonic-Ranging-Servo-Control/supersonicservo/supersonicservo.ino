@@ -36,12 +36,12 @@ float totalDistance = 0;
 // 定义变量用于存储测量次数
 int measurementCount = 0;
 // 定义测量次数上限
-const int maxMeasurements = 5;
+const int maxMeasurements = 2;
 
 // 舵机当前角度
 int currentServoAngle = 0;
 // 舵机运动步长
-const int servoStep = 10;
+const int servoStep = 5;
 
 void setup() {
   // 初始化串口通信

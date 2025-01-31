@@ -1,11 +1,4 @@
-//在刚才程序上再加如下功能：添加一个SG90舵机，随着自动测量距离的增加舵机转动到最大角度，测量距离越近，舵机角度越小。并给出连接接线方法。
-
-
 #include <Servo.h>
-
-
-
-
 
 // 定义触发引脚和回声引脚
 const int trigPin = 9;
@@ -38,6 +31,18 @@ unsigned long ledInterval;
 // LED 状态
 bool ledState = LOW;
 
+// 定义变量用于存储多次测量的总和
+float totalDistance = 0;
+// 定义变量用于存储测量次数
+int measurementCount = 0;
+// 定义测量次数上限
+const int maxMeasurements = 5;
+
+// 舵机当前角度
+int currentServoAngle = 0;
+// 舵机运动步长
+const int servoStep = 10;
+
 void setup() {
   // 初始化串口通信
   Serial.begin(9600);
@@ -50,6 +55,8 @@ void setup() {
 
   // 连接舵机到指定引脚
   myServo.attach(servoPin);
+  // 初始化舵机角度
+  myServo.write(currentServoAngle);
 }
 
 void loop() {
@@ -85,9 +92,18 @@ void loop() {
       // 这里简单将距离映射到 100 - 1000 毫秒的闪烁间隔
       ledInterval = map(distance, 0, 200, 100, 1000);
 
-      // 根据距离控制舵机角度 将2-20cm映射到180°
-      int servoAngle = map(distance, 2, 20, 0, 180);
-      myServo.write(servoAngle);
+      // 根据距离计算目标舵机角度，将 2 - 20cm 映射到 0 - 180°
+      int targetServoAngle = map(distance, 2, 20, 0, 180);
+      // 确保目标角度在 0 - 180° 范围内
+      targetServoAngle = constrain(targetServoAngle, 0, 180);
+
+      // 逐步调整舵机角度
+      if (currentServoAngle < targetServoAngle) {
+        currentServoAngle = min(currentServoAngle + servoStep, targetServoAngle);
+      } else if (currentServoAngle > targetServoAngle) {
+        currentServoAngle = max(currentServoAngle - servoStep, targetServoAngle);
+      }
+      myServo.write(currentServoAngle);
     }
 
     // 控制 LED 闪烁
@@ -98,14 +114,6 @@ void loop() {
     }
   }
 }
-
-
-// 定义变量用于存储多次测量的总和
-float totalDistance = 0;
-// 定义变量用于存储测量次数
-int measurementCount = 0;
-// 定义测量次数上限
-const int maxMeasurements = 5;
 
 // 测量距离的函数
 void measureDistance() {
@@ -135,21 +143,3 @@ void measureDistance() {
     measurementCount = 0;
   }
 }
-
-/*
-// 测量距离的函数
-void measureDistance() {
-  // 清空触发引脚
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  // 发送 10 微秒的高电平脉冲触发超声波模块
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-
-  // 读取回声引脚的脉冲持续时间
-  long duration = pulseIn(echoPin, HIGH);
-  // 根据声速（340m/s）计算距离
-  distance = duration * 0.034 / 2;
-}
-*/

@@ -1,10 +1,9 @@
-// 引入 Servo 库，该库用于控制舵机
 #include <Servo.h>
 
-// 定义舵机对象，后续将使用这个对象来控制舵机的转动
+// 定义舵机对象，用于控制舵机的转动
 Servo myServo;
 
-// 定义滑动变阻器连接的引脚，这里使用 Arduino 的模拟输入引脚 A0
+// 定义滑动变阻器连接的引脚，使用 Arduino 的模拟输入引脚 A0
 const int potPin = A0;
 // 定义 LED 连接的引脚，使用 Arduino 开发板上的数字引脚 13
 const int ledPin = 13;
@@ -30,8 +29,11 @@ bool ledState = LOW;
 
 // 模式选择标志，用于记录用户选择的工作模式，初始值为空格表示未选择
 char mode = ' ';
+// 标志位，用于判断是否有新的角度输入
+bool newAngleReceived = false;
+// 记录当前舵机的角度，初始值为 0
+int currentAngle = 0;
 
-// setup() 函数在程序开始时只执行一次，用于初始化硬件和设置初始参数
 void setup() {
   // 初始化舵机，将舵机连接到数字引脚 9，并设置其 PWM 信号的最小和最大宽度
   myServo.attach(9, minPulse, maxPulse);
@@ -46,7 +48,6 @@ void setup() {
   Serial.println("选择模式：电阻模拟(A)或串口发送角度(B)");
 }
 
-// loop() 函数会不断循环执行，实现程序的主要功能
 void loop() {
   // 如果还没有选择工作模式
   if (mode == ' ') {
@@ -95,13 +96,29 @@ void loop() {
       if (angle >= 0 && angle <= 180) {
         // 根据用户输入的有效角度，控制舵机转动到相应的角度
         myServo.write(angle);
+        // 更新当前舵机的角度
+        currentAngle = angle;
         // 在串口监视器上显示舵机已经转动到的角度
         Serial.print("舵机已转到角度: ");
         Serial.println(angle);
+        // 设置标志位，表示有新的角度输入
+        newAngleReceived = true;
       } else {
         // 如果输入的角度无效，在串口监视器上显示错误提示信息
         Serial.println("输入的角度无效，请输入 0 - 180 度之间的角度");
       }
+      // 清空串口缓冲区，避免残留数据影响下次读取
+      while (Serial.available() > 0) {
+        Serial.read();
+      }
+    }
+    // 如果没有新的角度输入，保持舵机当前角度
+    else if (!newAngleReceived) {
+      myServo.write(currentAngle);
+    }
+    // 当处理完一次新的角度输入后，重置标志位
+    else {
+      newAngleReceived = false;
     }
   }
   

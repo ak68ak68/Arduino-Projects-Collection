@@ -16,6 +16,41 @@ float CompAngleX, CompAngleY; // 互补滤波后的角度
 float gyroXrate, gyroYrate, gyroZrate;   // 陀螺仪的角速度
 unsigned long preInterval;    // 上一次处理的时间
 
+// 低通滤波变量
+int16_t prevAcX, prevAcY, prevAcZ;
+const float alpha = 0.1;
+
+// 卡尔曼滤波类
+class KalmanFilter {
+  public:
+    KalmanFilter() {
+      q = 0.001; // 过程噪声协方差
+      r = 0.1;   // 测量噪声协方差
+      x = 0;     // 状态估计值
+      p = 1.0;   // 估计误差协方差
+    }
+
+    float update(float measurement) {
+      // 预测步骤
+      p = p + q;
+
+      // 更新步骤
+      float k = p / (p + r);
+      x = x + k * (measurement - x);
+      p = (1 - k) * p;
+
+      return x;
+    }
+
+  private:
+    float q; // 过程噪声协方差
+    float r; // 测量噪声协方差
+    float x; // 状态估计值
+    float p; // 估计误差协方差
+};
+
+KalmanFilter kfPitch, kfRoll;
+
 void setup() {
   Wire.begin(); // 初始化I2C总线，让Arduino能够与I2C设备进行通信
   Wire.beginTransmission(MPU_addr); // 开始与MPU6050进行通信
@@ -63,6 +98,15 @@ void loop() {
   AcY = Wire.read() << 8 | Wire.read();
   AcZ = Wire.read() << 8 | Wire.read();
 
+  // 低通滤波
+  AcX = alpha * AcX + (1 - alpha) * prevAcX;
+  AcY = alpha * AcY + (1 - alpha) * prevAcY;
+  AcZ = alpha * AcZ + (1 - alpha) * prevAcZ;
+
+  prevAcX = AcX;
+  prevAcY = AcY;
+  prevAcZ = AcZ;
+
   // 读取陀螺仪数据
   int16_t rawGyX = Wire.read() << 8 | Wire.read();
   int16_t rawGyY = Wire.read() << 8 | Wire.read();
@@ -88,8 +132,12 @@ void loop() {
   gyroZangle += gyroZrate * dt; // 通过积分计算Z轴角度变化
 
   // 互补滤波
-  CompAngleX = 0.98 * (CompAngleX + gyroXrate * dt) + 0.02 * AccXangle; // 融合加速度计和陀螺仪数据得到更准确的Pitch角
-  CompAngleY = 0.98 * (CompAngleY + gyroYrate * dt) + 0.02 * AccYangle; // 融合加速度计和陀螺仪数据得到更准确的Roll角
+  float tempPitch = 0.98 * (CompAngleX + gyroXrate * dt) + 0.02 * AccXangle;
+  float tempRoll = 0.98 * (CompAngleY + gyroYrate * dt) + 0.02 * AccYangle;
+
+  // 卡尔曼滤波
+  CompAngleX = kfPitch.update(tempPitch);
+  CompAngleY = kfRoll.update(tempRoll);
 
   // 通过串口输出ROLL、PITCH、YAW
   Serial.print("ROLL: ");

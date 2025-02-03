@@ -1,6 +1,5 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-#include <QRegularExpression>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -44,23 +43,26 @@ MainWindow::~MainWindow()
 
 void MainWindow::readData()
 {
-    // 读取串口数据
     QByteArray data = serial->readAll();
-    QString dataStr = QString::fromUtf8(data);
+    buffer.append(QString::fromUtf8(data));
 
-    // 使用正则表达式提取温度和湿度数据
+    // 检查缓存的数据是否包含完整的温度和湿度信息
     QRegularExpression tempRegex("Temperature: ([-+]?[0-9]*\\.?[0-9]+) °C");
     QRegularExpression humiRegex("Humidity: ([-+]?[0-9]*\\.?[0-9]+) %");
 
-    QRegularExpressionMatch tempMatch = tempRegex.match(dataStr);
-    QRegularExpressionMatch humiMatch = humiRegex.match(dataStr);
+    QRegularExpressionMatch tempMatch = tempRegex.match(buffer);
+    QRegularExpressionMatch humiMatch = humiRegex.match(buffer);
 
     if (tempMatch.hasMatch() && humiMatch.hasMatch()) {
         QString tempValue = tempMatch.captured(1);
         QString humiValue = humiMatch.captured(1);
 
-        // 更新UI显示
         ui->label_temp->setText("温度：" + tempValue + " °C");
         ui->label_humi->setText("湿度：" + humiValue + " %");
+
+        // 清除已经处理过的数据
+        buffer.clear();
+    } else {
+        qDebug() << "Failed to match temperature or humidity data. Buffer: " << buffer;
     }
 }

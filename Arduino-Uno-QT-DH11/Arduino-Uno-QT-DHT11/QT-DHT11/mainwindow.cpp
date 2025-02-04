@@ -60,8 +60,13 @@ void MainWindow::readData()
             qDebug() << "匹配到的温度值: " << tempValue;
             qDebug() << "匹配到的湿度值: " << humiValue;
 
-            ui->label_temp->setText("温度：" + tempValue + " °C");
+            qDebug() << "准备更新温度显示";
+            ui->label_temp->setText("温度：" + tempValue + " \u00B0C");
+            qDebug() << "温度显示更新完成";
+
+            qDebug() << "准备更新湿度显示";
             ui->label_humi->setText("湿度：" + humiValue + " %");
+            qDebug() << "湿度显示更新完成";
 
             // 清除已经处理过的数据
             buffer = buffer.mid(tempMatch.capturedEnd());

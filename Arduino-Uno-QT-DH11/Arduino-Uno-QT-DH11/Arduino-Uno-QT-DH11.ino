@@ -36,7 +36,7 @@ void loop() {
   // 输出温度信息到串口
   Serial.print("Temperature: ");
   Serial.print(t);
-  Serial.println(" °C");
+  Serial.println(" C");
 
   // 输出湿度信息到串口
   Serial.print("Humidity: ");

@@ -46,23 +46,33 @@ void MainWindow::readData()
     QByteArray data = serial->readAll();
     buffer.append(QString::fromUtf8(data));
 
-    // 检查缓存的数据是否包含完整的温度和湿度信息
-    QRegularExpression tempRegex("Temperature: ([-+]?[0-9]*\\.?[0-9]+) °C");
+    QRegularExpression tempRegex("Temperature: ([-+]?[0-9]*\\.?[0-9]+) C");
     QRegularExpression humiRegex("Humidity: ([-+]?[0-9]*\\.?[0-9]+) %");
 
-    QRegularExpressionMatch tempMatch = tempRegex.match(buffer);
-    QRegularExpressionMatch humiMatch = humiRegex.match(buffer);
+    while (true) {
+        QRegularExpressionMatch tempMatch = tempRegex.match(buffer);
+        QRegularExpressionMatch humiMatch = humiRegex.match(buffer);
 
-    if (tempMatch.hasMatch() && humiMatch.hasMatch()) {
-        QString tempValue = tempMatch.captured(1);
-        QString humiValue = humiMatch.captured(1);
+        if (tempMatch.hasMatch() && humiMatch.hasMatch()) {
+            QString tempValue = tempMatch.captured(1);
+            QString humiValue = humiMatch.captured(1);
 
-        ui->label_temp->setText("温度：" + tempValue + " °C");
-        ui->label_humi->setText("湿度：" + humiValue + " %");
+            qDebug() << "匹配到的温度值: " << tempValue;
+            qDebug() << "匹配到的湿度值: " << humiValue;
 
-        // 清除已经处理过的数据
+            ui->label_temp->setText("温度：" + tempValue + " °C");
+            ui->label_humi->setText("湿度：" + humiValue + " %");
+
+            // 清除已经处理过的数据
+            buffer = buffer.mid(tempMatch.capturedEnd());
+        }else {
+            break;
+        }
+    }
+
+    if (buffer.size() > 1024) {
+        // 如果缓存数据过长，清空缓存，避免内存占用过高
         buffer.clear();
-    } else {
-        qDebug() << "Failed to match temperature or humidity data. Buffer: " << buffer;
+        qDebug() << "Buffer is too long. Cleared.";
     }
 }

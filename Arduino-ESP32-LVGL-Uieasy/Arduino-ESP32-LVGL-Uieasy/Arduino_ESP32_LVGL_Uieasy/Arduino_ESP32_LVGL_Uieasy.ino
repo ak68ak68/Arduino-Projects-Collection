@@ -35,8 +35,19 @@ void loop() {
     // 设置字体
     u8g2.setFont(u8g2_font_ncenB08_tr);
 
-    // 绘制一个心形，位置 (32, 10)，大小为 20
-    drawHeart(32, 10, 20);
+    // 计算屏幕中心坐标
+    int centerX = 64;
+    int centerY = 32;
+
+    // 定义心形大小
+    int heartSize = 20;
+
+    // 计算心形的起始坐标，使心形居中
+    int startX = centerX - heartSize;
+    int startY = centerY - heartSize;
+
+    // 绘制一个心形，位置在屏幕中心，大小为 20
+    drawHeart(startX, startY, heartSize);
 
   } while (u8g2.nextPage());
 

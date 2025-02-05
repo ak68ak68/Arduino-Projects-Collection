@@ -1,45 +1,28 @@
-#include <SPI.h>
+#include <Arduino.h>
+#include <U8g2lib.h>
 #include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
 
-#define SCREEN_WIDTH 128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 64 // OLED display height, in pixels
-
-// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
-#define OLED_RESET    -1 // Reset pin # (or -1 if sharing Arduino reset pin)
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+U8G2_SSD1306_128X64_NONAME_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE); 
 
 void setup() {
-  // Initialize serial communication
   Serial.begin(9600);
-
-  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { 
-    Serial.println(F("SSD1306 allocation failed"));
-    for(;;); // Don't proceed, loop forever
+  Serial.println("Starting setup...");
+  if (!u8g2.begin()) {
+    Serial.println("U8g2 initialization failed!");
+  } else {
+    Serial.println("U8g2 initialized successfully.");
+    // 设置对比度，值范围为 0 - 255
+    u8g2.setContrast(255); 
   }
-
-  // Clear the buffer
-  display.clearDisplay();
-
-  // Set text size
-  display.setTextSize(1);
-
-  // Set text color
-  display.setTextColor(SSD1306_WHITE);
-
-  // Set cursor position
-  display.setCursor(0, 0);
-
-  // Display text
-  display.println("Hello, World!");
-
-  // Update the display
-  display.display();
 }
 
 void loop() {
-  // You can add more code here if you want to do something continuously
+  u8g2.firstPage();
+  do {
+    u8g2.setFont(u8g2_font_ncenB08_tr);
+    u8g2.drawCircle(64, 32, 20, U8G2_DRAW_ALL);
+    u8g2.drawFrame(20, 10, 30, 30);
+  } while ( u8g2.nextPage() );
+
   delay(1000);
 }

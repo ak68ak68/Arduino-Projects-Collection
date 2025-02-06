@@ -21,6 +21,7 @@ void calculatePosition(int angle, int length, int& x, int& y) {
     y = centerY + length * sin(rad);
 }
 
+
 void setup() {
     // 初始化 U8g2
     u8g2.begin();
@@ -47,6 +48,18 @@ void loop() {
                 calculatePosition(angle, radius, x2, y2);
             }
             u8g2.drawLine(x1, y1, x2, y2);
+        }
+
+        // 绘制 1 - 12 数字
+        u8g2.setFont(u8g2_font_6x10_tr);  // 设置为支持的字体
+        for (int i = 1; i <= 12; i++) {
+            int angle = i * 30;  // 每个数字间隔 30 度
+            int x, y;
+            calculatePosition(angle, radius - 8, x, y);  // 数字位置稍微靠内一点
+            char numStr[3];
+            sprintf(numStr, "%d", i);
+            int strWidth = u8g2.getStrWidth(numStr);
+            u8g2.drawStr(x - strWidth / 2, y + 3, numStr);  // 居中绘制数字
         }
 
         // 计算 12:30 时时针和分针的角度

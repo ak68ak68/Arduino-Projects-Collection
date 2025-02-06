@@ -27,13 +27,13 @@ void loop() {
         u8g2.drawHLine(10, 15, 108);
 
         // 绘制第一个区域：文本和矩形
-        u8g2.drawStr(10, 25, "Section 1");
+        u8g2.drawStr(10, 25, "Sect 1");
         u8g2.drawFrame(10, 30, 50, 20);
         u8g2.drawStr(20, 40, "Info");
 
         // 绘制第二个区域：圆形和动态文本
         u8g2.drawCircle(90, 40, 10);
-        u8g2.setCursor(80, 25);
+        u8g2.setCursor(50, 25);
         u8g2.print("Counter: ");
         u8g2.print(counter);
 
